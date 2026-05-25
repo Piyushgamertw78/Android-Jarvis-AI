@@ -1,0 +1,1 @@
+<resources><style name="Theme.Jarvis" parent="android:Theme.Material.Light.NoActionBar"><item name="android:colorPrimary">@color/jarvis_neon</item></style></resources>
