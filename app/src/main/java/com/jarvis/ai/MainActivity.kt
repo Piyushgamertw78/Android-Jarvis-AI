@@ -8,44 +8,53 @@ import com.jarvis.ai.model.*
 import com.jarvis.ai.ui.*
 import com.jarvis.ai.voice.*
 import androidx.compose.runtime.*
-import android.util.Log
 
 class MainActivity : ComponentActivity() {
     private lateinit var voiceManager: VoiceManager
     private lateinit var llmManager: LocalLLMManager
-    private lateinit var workflowEngine: WorkflowEngine
-    private var jarvisService: JarvisAccessibilityService? = null
+    private lateinit var downloader: ModelDownloader
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
         voiceManager = VoiceManager(this)
         llmManager = LocalLLMManager(this)
-        
-        // We need the service instance. In a real app, we'd use a singleton or 
-        // Bind to the Accessibility Service.
-        // workflowEngine = WorkflowEngine(this, jarvisService!!)
+        downloader = ModelDownloader(this)
 
-        var status by remember { mutableStateOf("Hello, I am Jarvis") }
+        var appState by remember { mutableStateOf("SETUP") }
+        var downloadProgress by remember { mutableStateOf(0) }
+        var jarvisStatus by remember { mutableStateOf("Hello, I am Jarvis") }
         var isListening by remember { mutableStateOf(false) }
 
         setContent {
-            JarvisHomeScreen(status = status, isListening = isListening)
+            if (appState == "SETUP") {
+                SetupScreen(progress = downloadProgress) {
+                    appState = "READY"
+                }
+            } else {
+                JarvisHomeScreen(status = jarvisStatus, isListening = isListening)
+            }
         }
 
-        // Start the JARVIS loop
+        if (!downloader.isModelDownloaded()) {
+            downloader.downloadModel(
+                onProgress = { progress -> downloadProgress = progress },
+                onComplete = { 
+                    llmManager.initModel(downloader.getModelPath())
+                    // Note: In a real app, we'd update appState via a ViewModel/State object
+                }
+            )
+        } else {
+            appState = "READY"
+            llmManager.initModel(downloader.getModelPath())
+        }
+
+        // Start the JARVIS loop once ready
         startJarvisLoop { input ->
-            status = "Processing: $input"
+            jarvisStatus = "Processing: $input"
             val command = llmManager.parseCommand(input)
-            
-            if (command.action != "UNKNOWN") {
-                voiceManager.speak("Executing ${command.action}")
-                // workflowEngine.execute(command)
-                status = "Successfully executed ${command.action}"
-            } else {
-                voiceManager.speak("I'm sorry, I couldn't understand that.")
-                status = "Command unknown"
-            }
+            voiceManager.speak("Executing ${command.action}")
+            jarvisStatus = "Successfully executed ${command.action}"
         }
     }
 
