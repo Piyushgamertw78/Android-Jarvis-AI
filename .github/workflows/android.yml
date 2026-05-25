@@ -20,9 +20,15 @@ jobs:
         distribution: 'temurin'
         cache: gradle
 
-    # Use the pre-installed gradle on the runner instead of the wrapper
-    - name: Build with Gradle
-      run: gradle assembleDebug
+    # This is the magic step: it creates the wrapper files on the fly
+    - name: Generate Gradle Wrapper
+      run: gradle wrapper
+
+    - name: Grant execute permission for gradlew
+      run: chmod +x gradlew
+
+    - name: Build with Gradle Wrapper
+      run: ./gradlew assembleDebug
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
